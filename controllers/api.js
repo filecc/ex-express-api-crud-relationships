@@ -162,7 +162,7 @@ async function store (req, res, next) {
     data.tags
     )
 
-  
+    console.log(newPost)
 
     try {
       prisma.post.create({
@@ -174,9 +174,19 @@ async function store (req, res, next) {
           slug: newPost.slug,
           categoryId: newPost.category,
           tags: {
-            connect: newPost.tags.map((tag) => ({
-              name: tag,
-            })),
+            connectOrCreate: newPost.tags.map((tag) => {
+              return {
+                where: {
+                  name: tag,
+                  slug: tag
+                },
+                create: {
+                  name: tag,
+                  slug: tag
+                }
+              }
+            })
+            
           }
         }
       })
