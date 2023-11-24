@@ -57,7 +57,15 @@ async function index(req, res, next) {
       res.json({
         totalResults: posts.length,
         nextPage: nextPage,
-        posts: posts.slice(startIndex, possibleLimit)
+        posts: posts.slice(startIndex, possibleLimit).map((post) => {
+          const tags = post.tags.map((tag) => {
+            return tag.name
+          })
+          return {
+            ...post, 
+            tags: tags
+          }
+        })
       })
       return
     })
@@ -71,8 +79,10 @@ async function index(req, res, next) {
     include: {
       tags: {
         select: {
-          name: true,
-          slug: true
+          name: true
+        },
+        orderBy: {
+          name: "asc"
         }
       }
     }
@@ -82,7 +92,17 @@ async function index(req, res, next) {
       next(new CustomError(404, `No posts found`))
       return
     }
-    res.json(posts);
+    res.json({
+      ...posts.map((post) => {
+        const tags = post.tags.map((tag) => {
+          return tag.name
+        })
+        return {
+          ...post, 
+          tags: tags
+        }
+      })
+    });
     return
   })
   .catch((error) => {
