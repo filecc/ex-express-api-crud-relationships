@@ -7,8 +7,9 @@ const generateJWT = require("../lib/generateJWT");
 const {PrismaClient} = require("@prisma/client");
 const prisma = new PrismaClient()
 const CustomError= require("../lib/CustomError");
+const CustomErrorValidation = require("../lib/CustomError");
 const slugGenerator = require("../lib/slugGenerator");
-
+const { validationResult } = require("express-validator");
 
 
 const port = process.env.PORT ?? "";
@@ -61,10 +62,10 @@ async function index(req, res, next) {
           const tags = post.tags.map((tag) => {
             return tag.name
           })
-          return {
+          return [{
             ...post, 
             tags: tags
-          }
+          }]
         })
       })
       return
@@ -92,16 +93,14 @@ async function index(req, res, next) {
       next(new CustomError(404, `No posts found`))
       return
     }
-    res.json({
-      ...posts.map((post) => {
-        const tags = post.tags.map((tag) => {
-          return tag.name
-        })
-        return {
-          ...post, 
-          tags: tags
-        }
+    const tags = posts.map((post) => {
+      const tags = post.tags.map((tag) => {
+        return tag.name
       })
+    res.json([{
+      ...post, 
+      tags: tags
+    }])
     });
     return
   })
@@ -143,12 +142,11 @@ async function show(req, res, next) {
 }
 
 async function store (req, res, next) {
-  const data = req.body
-  if(!data.title || !data.content || !data.published){
-    next(new CustomError(400, "Missing required fields"))
-    return
+  const validation = validationResult(req);
+  if (!validation.isEmpty()) {
+    next(new CustomErrorValidation('Some errors', 500, validation.array()))
   }
- 
+  const data = req.body 
   
   let imageSlug;
 
@@ -160,7 +158,11 @@ async function store (req, res, next) {
     data.content,
     published = data.published === "true" ? true : false,
     imageSlug ?? '/placeholder.webp',
+    parseInt(data.category),
+    data.tags
     )
+
+  
 
     try {
       prisma.post.create({
@@ -169,7 +171,13 @@ async function store (req, res, next) {
           content: newPost.content,
           published: newPost.published,
           image: newPost.image,
-          slug: newPost.slug
+          slug: newPost.slug,
+          categoryId: newPost.category,
+          tags: {
+            connect: newPost.tags.map((tag) => ({
+              name: tag,
+            })),
+          }
         }
       })
       .then((post) => {

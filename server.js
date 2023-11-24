@@ -2,10 +2,9 @@ const dotenv = require('dotenv').config()
 const express = require('express')
 const app = express()
 const port = process.env.PORT
-const path = require('path')
 const cookieParser = require('cookie-parser');
-const fs = require('fs')
-const jwt = require("jsonwebtoken");
+
+
 
 const homeController = require('./controllers/home')
 const apiRouter = require('./routers/api')

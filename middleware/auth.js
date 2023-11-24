@@ -8,12 +8,13 @@ function isUserAuthenticated(req, res, next){
     if(!token){
         throw new CustomError('API KEY not present.', 401)
     }
-
+  
     jwt.verify(token, process.env.JWT_SECRET, (err, decodedToken) => {
+        /* const newToken = jwt.sign({name: 'filecc'}, process.env.JWT_SECRET, {expiresIn: '80h'}) */
         if(err){
             res.clearCookie('session')
             res.clearCookie('user')
-            throw new CustomError('Your credentials are expired. Go back to login page.', 401)
+            throw new CustomError(`Your credentials are expired. Go back to login page.`, 401)
         } else {
             next()
             return
