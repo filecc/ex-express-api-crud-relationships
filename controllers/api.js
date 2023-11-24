@@ -93,15 +93,16 @@ async function index(req, res, next) {
       next(new CustomError(404, `No posts found`))
       return
     }
-    const tags = posts.map((post) => {
-      const tags = post.tags.map((tag) => {
-        return tag.name
-      })
-    res.json([{
-      ...post, 
-      tags: tags
-    }])
+
+    const postsToReturn = posts.map((post) => {
+      return {
+        ...post,
+        tags: post.tags.map((tag) => tag.name)
+      }
     });
+    res.json(postsToReturn)
+    
+
     return
   })
   .catch((error) => {
