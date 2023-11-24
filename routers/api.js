@@ -6,9 +6,10 @@ const authMiddleware = require("../middleware/auth");
 const errors = require("../middleware/errors");
 const { body, checkSchema } = require("express-validator");
 const postCreate = require("../validations/postCreate");
+const postEdit = require("../validations/postEdit");
 
 const authMulterCreateMiddlware = [authMiddleware, multer({dest: "public/images"}).single("image"), checkSchema(postCreate)]
-const authMulterEditMiddleware = [authMiddleware]
+const authMulterEditMiddleware = [authMiddleware, multer().none(), checkSchema(postEdit)]
 const authMulterDeleteMiddleware = [authMiddleware]
 
 router.get("/posts", apiController.index)

@@ -146,6 +146,7 @@ async function store (req, res, next) {
   const validation = validationResult(req);
   if (!validation.isEmpty()) {
     next(new CustomErrorValidation('Some errors', 500, validation.array()))
+    return
   }
   const data = req.body 
   
@@ -162,8 +163,6 @@ async function store (req, res, next) {
     parseInt(data.category),
     data.tags
     )
-
-    console.log(newPost)
 
     try {
       prisma.post.create({
@@ -191,8 +190,21 @@ async function store (req, res, next) {
           }
         }
       })
-      .then((post) => {
-        res.json(post)
+      .then(async (post) => {
+        const postCreated = await prisma.post.findUnique({
+          where: {
+            slug: post.slug
+          }, 
+          include: {
+            tags: {
+              select: {
+                name: true
+              }
+            }
+          }
+        })
+        postCreated.tags = postCreated.tags.map((tag) => tag.name)
+        res.json(postCreated)
       })
       .catch((error) => {
         next(new CustomError(404, error.message))
@@ -200,6 +212,7 @@ async function store (req, res, next) {
       })
     } catch (error) {
       next(new CustomError(400, error.message))
+      return
     }
 }
 
@@ -219,36 +232,103 @@ async function destroy(req, res, next) {
   })
 }
 
+/**
+ * 
+ * @param {express.Request} req 
+ * @param {express.Response} res 
+ * @param {express.NextFunction} next 
+ * @returns 
+ */
 async function edit(req, res, next){
-  const slug = req.body.slug
+
+  const validation = validationResult(req);
+
+  if (!validation.isEmpty()) {
+    next(new CustomErrorValidation('Some errors', 500, validation.array()))
+    return
+  }
+  
   const data = req.body
 
-  if(!slug){
-    next(new CustomError(400, "Missing slug"))
+  if(Object.keys(data).length === 0 || Object.keys(data).length === 1 && data.slug){
+    res.json({
+      message: "Nothing to change."
+    })
     return
   }
 
-  if(!data.title || !data.content || !data.published){
-    next(new CustomError(400, "Missing required fields: title, content, published."))
-    return
-  }
+  const { title, content, published, image, category, tags, slug } = req.body
 
-  const newSlug = await slugGenerator(data.title)
+  const oldPost = await prisma.post.findUnique({
+    where: {
+      slug: slug
+    },
+    include: {
+      tags: {
+        select: {
+          name: true
+        }
+      }
+    }
+  })
 
+  const oldTags = oldPost.tags.map((tag) => tag.name)
+
+  const newSlug = title ? await slugGenerator(title) : oldPost.slug
+
+  const editedPost = new Post(
+    title ?? oldPost.title, 
+    newSlug,
+    content ?? oldPost.content, 
+    published ?? oldPost.published,
+    image ?? oldPost.image,
+    category ?? oldPost.categoryId,
+    tags ?? oldTags
+    )
+
+ 
   await prisma.post.update({
     where: {
       slug: slug
     },
     data: {
-      title: data.title,
-      content: data.content,
-      published: data.published === "true" ? true : false,
-      slug: newSlug
+      title: editedPost.title,
+      slug: editedPost.slug,
+      content: editedPost.content,
+      published: editedPost.published,
+      image: editedPost.image,
+      categoryId: editedPost.category,
+      tags: {
+        set: [],
+        connectOrCreate: editedPost.tags.map((tag) => {
+          return {
+            where: {
+              name: tag,
+              slug: tag
+            },
+            create: {
+              name: tag,
+              slug: tag
+            }
+          }
+        })
+        
+      }
     }
   
   })
-  .then((post) => {
-    res.json(post)
+  .then(async (post) => {
+    const postEdited = await prisma.post.findUnique({
+      where: {
+        slug: post.slug
+      },
+      include: {
+        tags: true
+      }
+    })
+    postEdited.tags = postEdited.tags.map((tag) => tag.name)
+    res.json(postEdited)
+    return
   })
   .catch((error) => {
     next(new CustomError(404, error.message))
