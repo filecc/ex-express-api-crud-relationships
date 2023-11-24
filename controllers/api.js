@@ -217,14 +217,30 @@ async function store (req, res, next) {
 }
 
 async function destroy(req, res, next) {
-  const slug = req.body.slug
+  
+  const validation = validationResult(req);
+  if(!validation.isEmpty()){
+    next(new CustomErrorValidation('Some errors', 500, validation.array()))
+    return
+  }
+
+  const { slug } = req.body
+
   await prisma.post.delete({
     where: {
       slug: slug
+    },
+    include: {
+      tags: true
     }
   })
   .then((post) => {
-    res.json(post)
+    const oldPost = post
+    oldPost.tags = oldPost.tags.map((tag) => tag.name)
+    res.json({
+      message: `Post with slug '${slug}' deleted`,
+      oldPost: oldPost
+    })
   })
   .catch((error) => {
     next(new CustomError(404, error.message))
